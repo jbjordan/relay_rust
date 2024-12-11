@@ -18,8 +18,8 @@ type HmacSha256 = Hmac<Sha256>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let namespace = "<relay-namespace>.servicebus.windows.net";
-    let entity = "<entity-name>";
+    let namespace = "<namespace>.servicebus.windows.net";
+    let entity = "<entity>";
     let sas_key_name = "<sas-key-name>";
     let sas_key = "<sas-key>";
 
@@ -51,7 +51,7 @@ async fn start_listener(namespace: &str, entity: &str, sas_token: &str) -> Resul
     while let Some(msg) = ws_stream.next().await {
         match msg? {
             Message::Text(text) => {
-                println!("Received message from server: {}", text);
+                println!("Received Sender Request:");
                 let test: serde_json::Value = serde_json::from_str(&text).unwrap();
                 let request = &test["accept"];
                 let target = &request["address"];
@@ -99,7 +99,6 @@ async fn rendezvous(target: &str) -> Result<()> {
     let target_rendezvous = target.replace("\"", "");
     println!("Client is connecting");
     let url_rendezvous: Url = Url::parse(&target_rendezvous)?;
-    println!("URL: {}", url_rendezvous);
     let (mut ws_stream_rendezvous, _) = connect_async(url_rendezvous).await.expect("Failed to connect");
     println!("Client has connected");
 
