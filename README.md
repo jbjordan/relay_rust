@@ -4,9 +4,7 @@ This repo contains an Echo websocket server using Azure Relay. With this example
 Underlying websocket configuration is based on this repo: https://github.com/campbellgoe/rust_websocket_client
 
 # Instructions
-1. Update the relay namespace, entity and sas_token strings in main.rs with the values of your own Relay namespace information. 
-    a. Create a namespace: https://learn.microsoft.com/en-us/azure/azure-relay/relay-hybrid-connections-dotnet-get-started#create-a-namespace
-    b. sas_token must be generated outside of this example and copied over.
+1. Update the relay namespace, entity, sas_key_name, and sas_key strings in main.rs with the values of your own Relay namespace information. Create a namespace: https://learn.microsoft.com/en-us/azure/azure-relay/relay-hybrid-connections-dotnet-get-started#create-a-namespace
 
 2. Running the Relay Listener
 First, ensure that you are in the directory of the project (rust_relay). 

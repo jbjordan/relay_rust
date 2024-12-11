@@ -1,26 +1,41 @@
+extern crate base64;
+extern crate hmac;
+extern crate sha2;
+extern crate urlencoding;
+
 use tokio_tungstenite::connect_async;
 use tokio_tungstenite::tungstenite::protocol::Message;
 use anyhow::Result;
 use futures_util::{SinkExt, StreamExt};
 use url::Url;
 use std::env;
+use std::time::{SystemTime, UNIX_EPOCH};
+use hmac::{Hmac, Mac};
+use sha2::Sha256;
+
+// Create alias for HMAC-SHA256
+type HmacSha256 = Hmac<Sha256>;
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let namespace = "<namespace>.servicebus.windows.net";
-    let entity = "<hybrid-connection>";
-    let sas_token = "<sas-token>";
-    
+    let namespace = "<relay-namespace>.servicebus.windows.net";
+    let entity = "<entity-name>";
+    let sas_key_name = "<sas-key-name>";
+    let sas_key = "<sas-key>";
+
+    let sas_token_temp = create_sas_token(namespace, entity, sas_key_name, sas_key);
+    let sas_token = urlencoding::encode(&sas_token_temp);
+
     let args: Vec<String> = env::args().collect();
     let relay = &args[1];
 
     if relay.to_string() == "listener" {
         println!("Starting Listener");
-        let _ = start_listener(namespace, entity, sas_token).await;
+        let _ = start_listener(namespace, entity, &sas_token).await;
     }
     if relay.to_string() == "sender" {
         println!("Starting Sender");
-        let _ = start_sender(namespace, entity, sas_token).await;
+        let _ = start_sender(namespace, entity, &sas_token).await;
     }
 
     Ok(())
@@ -99,4 +114,31 @@ async fn rendezvous(target: &str) -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn create_sas_token(service_namespace: &str, entity_path: &str, sas_key_name: &str, sas_key: &str) -> String {
+    let uri = format!("http://{}/{}", service_namespace, entity_path);
+    let encoded_resource_uri = urlencoding::encode(&uri);
+
+    let token_valid_time_in_seconds = 60 * 60 * 48; // 48 hours
+    let unix_seconds = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_secs();
+    let expiry_in_seconds = unix_seconds + token_valid_time_in_seconds;
+
+    let plain_signature = format!("{}\n{}", encoded_resource_uri, expiry_in_seconds);
+    let sas_key_bytes = sas_key.as_bytes();
+    let plain_signature_bytes = plain_signature.as_bytes();
+    let mut mac = HmacSha256::new_from_slice(sas_key_bytes).expect("HMAC can take key of any size");
+    mac.update(plain_signature_bytes);
+    let hash_bytes = mac.finalize().into_bytes().to_vec();
+    let base64_hash_value = base64::encode(hash_bytes);
+
+    let token = format!(
+        "SharedAccessSignature sr={}&sig={}&se={}&skn={}",
+        encoded_resource_uri,
+        urlencoding::encode(&base64_hash_value),
+        expiry_in_seconds,
+        sas_key_name
+    );
+
+    token
 }
